@@ -64,7 +64,7 @@ export const DataProvider = ({ children }) => {
     }
   ]);
 
-  const [medicines, setMedicines] = useState([
+  const [medicines] = useState([
     {
       id: 1,
       name: 'Aspirin',
