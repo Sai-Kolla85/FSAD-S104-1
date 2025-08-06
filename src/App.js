@@ -11,10 +11,13 @@ import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
 function App() {
+  // Use basename only in production (GitHub Pages)
+  const basename = process.env.NODE_ENV === 'production' ? '/FSAD-S104-1' : '';
+  
   return (
     <AuthProvider>
       <DataProvider>
-        <Router basename="/hospital-management-system">
+        <Router basename={basename}>
           <div className="App">
             <Routes>
               <Route path="/" element={<Navigate to="/login" replace />} />
