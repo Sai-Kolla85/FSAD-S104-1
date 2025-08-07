@@ -21,7 +21,10 @@ const ReceptionistDashboard = () => {
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showAllAppointmentsModal, setShowAllAppointmentsModal] = useState(false);
+  const [showPatientDetailsModal, setShowPatientDetailsModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [selectedPatient, setSelectedPatient] = useState(null);
 
   const [patientForm, setPatientForm] = useState({
     name: '',
@@ -112,6 +115,19 @@ const ReceptionistDashboard = () => {
     return doctor ? doctor.availableSlots : [];
   };
 
+  const handleViewAllAppointments = () => {
+    setShowAllAppointmentsModal(true);
+  };
+
+  const handleViewPatientDetails = (patient) => {
+    setSelectedPatient(patient);
+    setShowPatientDetailsModal(true);
+  };
+
+  const getAppointmentsByPatient = (patientId) => {
+    return appointments.filter(apt => apt.patientId === patientId);
+  };
+
   return (
     <div className="dashboard">
       <Navbar title="Receptionist Dashboard" />
@@ -152,6 +168,12 @@ const ReceptionistDashboard = () => {
               >
                 Schedule Appointment
               </button>
+              <button 
+                onClick={handleViewAllAppointments}
+                className="btn btn-info"
+              >
+                View All Appointments
+              </button>
             </div>
           </Card>
         </div>
@@ -191,14 +213,23 @@ const ReceptionistDashboard = () => {
             )}
           </Card>
 
-          <Card title="Recent Patients">
+                    <Card title="Recent Patients">
             <div className="patients-list">
               {patients.slice(-5).reverse().map(patient => (
                 <div key={patient.id} className="patient-card">
-                  <h4>{patient.name}</h4>
-                  <p>📧 {patient.email}</p>
-                  <p>📞 {patient.phone}</p>
-                  <p>🎂 {patient.dateOfBirth}</p>
+                  <div className="patient-info">
+                    <h4>{patient.name}</h4>
+                    <p>📧 {patient.email}</p>
+                    <p>📞 {patient.phone}</p>
+                  </div>
+                  <div className="patient-actions">
+                    <button 
+                      onClick={() => handleViewPatientDetails(patient)}
+                      className="btn btn-outline btn-sm"
+                    >
+                      View Details
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -500,6 +531,114 @@ const ReceptionistDashboard = () => {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* All Appointments Modal */}
+      <Modal 
+        isOpen={showAllAppointmentsModal} 
+        onClose={() => setShowAllAppointmentsModal(false)}
+        title="All Appointments"
+      >
+        <div className="all-appointments">
+          <div className="appointments-by-status">
+            <div className="status-section">
+              <h4>Pending Appointments ({appointments.filter(apt => apt.status === 'pending').length})</h4>
+              {appointments.filter(apt => apt.status === 'pending').map(appointment => {
+                const patient = getPatientById(appointment.patientId);
+                const doctor = getDoctorById(appointment.doctorId);
+                return (
+                  <div key={appointment.id} className="mini-appointment-card">
+                    <p><strong>{patient?.name}</strong> with Dr. {doctor?.name}</p>
+                    <p>{appointment.date} at {appointment.time}</p>
+                    <p>{appointment.reason}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="status-section">
+              <h4>Confirmed Appointments ({appointments.filter(apt => apt.status === 'confirmed').length})</h4>
+              {appointments.filter(apt => apt.status === 'confirmed').map(appointment => {
+                const patient = getPatientById(appointment.patientId);
+                const doctor = getDoctorById(appointment.doctorId);
+                return (
+                  <div key={appointment.id} className="mini-appointment-card">
+                    <p><strong>{patient?.name}</strong> with Dr. {doctor?.name}</p>
+                    <p>{appointment.date} at {appointment.time}</p>
+                    <p>{appointment.reason}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="status-section">
+              <h4>Completed Appointments ({appointments.filter(apt => apt.status === 'completed').length})</h4>
+              {appointments.filter(apt => apt.status === 'completed').map(appointment => {
+                const patient = getPatientById(appointment.patientId);
+                const doctor = getDoctorById(appointment.doctorId);
+                return (
+                  <div key={appointment.id} className="mini-appointment-card">
+                    <p><strong>{patient?.name}</strong> with Dr. {doctor?.name}</p>
+                    <p>{appointment.date} at {appointment.time}</p>
+                    <p>{appointment.reason}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="modal-actions">
+            <button onClick={() => setShowAllAppointmentsModal(false)} className="btn btn-primary">
+              Close
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Patient Details Modal */}
+      <Modal 
+        isOpen={showPatientDetailsModal} 
+        onClose={() => setShowPatientDetailsModal(false)}
+        title="Patient Details"
+      >
+        {selectedPatient && (
+          <div className="patient-details">
+            <div className="patient-info-section">
+              <h4>Personal Information</h4>
+              <p><strong>Name:</strong> {selectedPatient.name}</p>
+              <p><strong>Email:</strong> {selectedPatient.email}</p>
+              <p><strong>Phone:</strong> {selectedPatient.phone}</p>
+              <p><strong>Address:</strong> {selectedPatient.address}</p>
+              <p><strong>Date of Birth:</strong> {selectedPatient.dateOfBirth}</p>
+              <p><strong>Gender:</strong> {selectedPatient.gender}</p>
+            </div>
+
+            <div className="appointment-history-section">
+              <h4>Appointment History</h4>
+              {getAppointmentsByPatient(selectedPatient.id).length === 0 ? (
+                <p>No appointments found for this patient.</p>
+              ) : (
+                getAppointmentsByPatient(selectedPatient.id).map(appointment => {
+                  const doctor = getDoctorById(appointment.doctorId);
+                  return (
+                    <div key={appointment.id} className="appointment-record">
+                      <p><strong>Date:</strong> {appointment.date} at {appointment.time}</p>
+                      <p><strong>Doctor:</strong> Dr. {doctor?.name}</p>
+                      <p><strong>Reason:</strong> {appointment.reason}</p>
+                      <p><strong>Status:</strong> {appointment.status}</p>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="modal-actions">
+              <button onClick={() => setShowPatientDetailsModal(false)} className="btn btn-primary">
+                Close
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

@@ -8,6 +8,8 @@ import { useData } from '../context/DataContext';
 const DoctorDashboard = () => {
   const { currentUser } = useAuth();
   const { 
+    appointments,
+    prescriptions,
     getAppointmentsByDoctor,
     getPatientById,
     confirmAppointment,
@@ -18,7 +20,10 @@ const DoctorDashboard = () => {
   } = useData();
 
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
+  const [showPatientRecordsModal, setShowPatientRecordsModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [selectedPatient, setSelectedPatient] = useState(null);
   const [prescriptionMedicines, setPrescriptionMedicines] = useState([{
     medicineId: '',
     medicineName: '',
@@ -39,6 +44,14 @@ const DoctorDashboard = () => {
     apt.status === 'scheduled'
   );
 
+  const confirmedAppointments = doctorAppointments.filter(apt => 
+    apt.status === 'confirmed'
+  );
+
+  const completedAppointments = doctorAppointments.filter(apt => 
+    apt.status === 'completed'
+  );
+
   const handleConfirmAppointment = (appointmentId) => {
     confirmAppointment(appointmentId);
     alert('Appointment confirmed!');
@@ -56,6 +69,28 @@ const DoctorDashboard = () => {
     setShowPrescriptionModal(true);
   };
 
+  const handleViewPatientRecords = (appointment) => {
+    const patient = getPatientById(appointment.patientId);
+    setSelectedPatient(patient);
+    setShowPatientRecordsModal(true);
+  };
+
+  const handleViewSchedule = () => {
+    setShowScheduleModal(true);
+  };
+
+  const resetPrescriptionForm = () => {
+    setPrescriptionMedicines([{
+      medicineId: '',
+      medicineName: '',
+      dosage: '',
+      frequency: '',
+      duration: '',
+      instructions: ''
+    }]);
+    setPrescriptionNotes('');
+  };
+
   const addMedicineField = () => {
     setPrescriptionMedicines([...prescriptionMedicines, {
       medicineId: '',
@@ -65,6 +100,15 @@ const DoctorDashboard = () => {
       duration: '',
       instructions: ''
     }]);
+  };
+
+  // Helper functions for patient records
+  const getAppointmentsByPatient = (patientId) => {
+    return appointments.filter(apt => apt.patientId === patientId);
+  };
+
+  const getPrescriptionsByPatient = (patientId) => {
+    return prescriptions.filter(presc => presc.patientId === patientId);
   };
 
   const removeMedicineField = (index) => {
@@ -104,15 +148,7 @@ const DoctorDashboard = () => {
     
     setShowPrescriptionModal(false);
     setSelectedAppointment(null);
-    setPrescriptionMedicines([{
-      medicineId: '',
-      medicineName: '',
-      dosage: '',
-      frequency: '',
-      duration: '',
-      instructions: ''
-    }]);
-    setPrescriptionNotes('');
+    resetPrescriptionForm();
     
     alert('Prescription added and appointment completed!');
   };
@@ -137,8 +173,27 @@ const DoctorDashboard = () => {
           <Card title="Pending Confirmations" className="stat-card">
             <div className="stat-number">{pendingAppointments.length}</div>
           </Card>
-          <Card title="Specialization" className="stat-card">
-            <div className="stat-text">{currentUser.specialization}</div>
+          <Card title="Completed" className="stat-card">
+            <div className="stat-number">{completedAppointments.length}</div>
+          </Card>
+        </div>
+
+        <div className="quick-actions-section">
+          <Card title="Quick Actions">
+            <div className="action-buttons">
+              <button 
+                onClick={handleViewSchedule}
+                className="btn btn-primary"
+              >
+                📅 View Full Schedule
+              </button>
+              <button 
+                onClick={() => setShowPatientRecordsModal(true)}
+                className="btn btn-outline"
+              >
+                👥 Patient Records
+              </button>
+            </div>
           </Card>
         </div>
 
@@ -178,6 +233,12 @@ const DoctorDashboard = () => {
                             Complete & Prescribe
                           </button>
                         )}
+                        <button 
+                          onClick={() => handleViewPatientRecords(appointment)}
+                          className="btn btn-outline btn-sm"
+                        >
+                          View Patient
+                        </button>
                         <button 
                           onClick={() => handleCancelAppointment(appointment.id)}
                           className="btn btn-danger btn-sm"
@@ -361,7 +422,10 @@ const DoctorDashboard = () => {
             </div>
 
             <div className="modal-actions">
-              <button type="button" onClick={() => setShowPrescriptionModal(false)} className="btn btn-outline">
+              <button type="button" onClick={() => {
+                setShowPrescriptionModal(false);
+                resetPrescriptionForm();
+              }} className="btn btn-outline">
                 Cancel
               </button>
               <button type="submit" className="btn btn-primary">
@@ -370,6 +434,129 @@ const DoctorDashboard = () => {
             </div>
           </form>
         )}
+      </Modal>
+
+      {/* Patient Records Modal */}
+      <Modal 
+        isOpen={showPatientRecordsModal} 
+        onClose={() => setShowPatientRecordsModal(false)}
+        title="Patient Records"
+      >
+        {selectedPatient ? (
+          <div className="patient-records">
+            <div className="patient-info">
+              <h4>Patient Information</h4>
+              <p><strong>Name:</strong> {selectedPatient.name}</p>
+              <p><strong>Email:</strong> {selectedPatient.email}</p>
+              <p><strong>Phone:</strong> {selectedPatient.phone}</p>
+              <p><strong>Date of Birth:</strong> {selectedPatient.dateOfBirth}</p>
+              <p><strong>Gender:</strong> {selectedPatient.gender}</p>
+              <p><strong>Address:</strong> {selectedPatient.address}</p>
+            </div>
+
+            <div className="appointment-history">
+              <h4>Appointment History</h4>
+              {getAppointmentsByPatient(selectedPatient.id).map(apt => (
+                <div key={apt.id} className="appointment-record">
+                  <p><strong>Date:</strong> {apt.date} at {apt.time}</p>
+                  <p><strong>Status:</strong> {apt.status}</p>
+                  <p><strong>Reason:</strong> {apt.reason}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="prescription-history">
+              <h4>Prescription History</h4>
+              {getPrescriptionsByPatient(selectedPatient.id).map(presc => (
+                <div key={presc.id} className="prescription-record">
+                  <p><strong>Date:</strong> {new Date(presc.createdAt).toLocaleDateString()}</p>
+                  <p><strong>Medicines:</strong> {presc.medicines.length} prescribed</p>
+                  {presc.notes && <p><strong>Notes:</strong> {presc.notes}</p>}
+                </div>
+              ))}
+            </div>
+
+            <div className="modal-actions">
+              <button onClick={() => setShowPatientRecordsModal(false)} className="btn btn-primary">
+                Close
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="all-patients">
+            <h4>All Patients</h4>
+            <div className="patients-list">
+              {/* This would show all patients - for now showing message */}
+              <p>Select a patient from an appointment to view detailed records.</p>
+            </div>
+            <div className="modal-actions">
+              <button onClick={() => setShowPatientRecordsModal(false)} className="btn btn-primary">
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Schedule Modal */}
+      <Modal 
+        isOpen={showScheduleModal} 
+        onClose={() => setShowScheduleModal(false)}
+        title="Full Schedule"
+      >
+        <div className="schedule-view">
+          <div className="schedule-filters">
+            <h4>All Appointments for {currentUser.name}</h4>
+            <p>Specialization: {currentUser.specialization}</p>
+          </div>
+
+          <div className="appointments-by-status">
+            <div className="status-section">
+              <h5>Pending Appointments ({pendingAppointments.length})</h5>
+              {pendingAppointments.map(appointment => {
+                const patient = getPatientById(appointment.patientId);
+                return (
+                  <div key={appointment.id} className="mini-appointment-card">
+                    <p><strong>{patient?.name}</strong> - {appointment.date} at {appointment.time}</p>
+                    <p>{appointment.reason}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="status-section">
+              <h5>Confirmed Appointments ({confirmedAppointments.length})</h5>
+              {confirmedAppointments.map(appointment => {
+                const patient = getPatientById(appointment.patientId);
+                return (
+                  <div key={appointment.id} className="mini-appointment-card">
+                    <p><strong>{patient?.name}</strong> - {appointment.date} at {appointment.time}</p>
+                    <p>{appointment.reason}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="status-section">
+              <h5>Completed Appointments ({completedAppointments.length})</h5>
+              {completedAppointments.map(appointment => {
+                const patient = getPatientById(appointment.patientId);
+                return (
+                  <div key={appointment.id} className="mini-appointment-card">
+                    <p><strong>{patient?.name}</strong> - {appointment.date} at {appointment.time}</p>
+                    <p>{appointment.reason}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="modal-actions">
+            <button onClick={() => setShowScheduleModal(false)} className="btn btn-primary">
+              Close
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

@@ -17,10 +17,13 @@ const PatientDashboard = () => {
   } = useData();
 
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
+  const [showAppointmentHistoryModal, setShowAppointmentHistoryModal] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [reason, setReason] = useState('');
+  const [selectedPrescription, setSelectedPrescription] = useState(null);
 
   const patientAppointments = getAppointmentsByPatient(currentUser.id);
   const patientPrescriptions = getPrescriptionsByPatient(currentUser.id);
@@ -28,6 +31,12 @@ const PatientDashboard = () => {
   const upcomingAppointments = patientAppointments.filter(apt => 
     apt.status === 'scheduled' || apt.status === 'confirmed'
   );
+
+  const completedAppointments = patientAppointments.filter(apt => 
+    apt.status === 'completed'
+  );
+
+  const recentPrescriptions = patientPrescriptions.slice(0, 3);
 
   const handleBookAppointment = (e) => {
     e.preventDefault();
@@ -42,13 +51,7 @@ const PatientDashboard = () => {
 
     addAppointment(appointmentData);
     setShowBookingModal(false);
-    
-    // Reset form
-    setSelectedDoctor('');
-    setSelectedDate('');
-    setSelectedTime('');
-    setReason('');
-    
+    resetBookingForm();
     alert('Appointment booked successfully!');
   };
 
@@ -57,6 +60,22 @@ const PatientDashboard = () => {
       cancelAppointment(appointmentId);
       alert('Appointment cancelled successfully!');
     }
+  };
+
+  const handleViewPrescription = (prescription) => {
+    setSelectedPrescription(prescription);
+    setShowPrescriptionModal(true);
+  };
+
+  const handleViewAppointmentHistory = () => {
+    setShowAppointmentHistoryModal(true);
+  };
+
+  const resetBookingForm = () => {
+    setSelectedDoctor('');
+    setSelectedDate('');
+    setSelectedTime('');
+    setReason('');
   };
 
   const getMinDate = () => {
@@ -87,16 +106,30 @@ const PatientDashboard = () => {
           <Card title="Upcoming Appointments" className="stat-card">
             <div className="stat-number">{upcomingAppointments.length}</div>
           </Card>
-          <Card title="Prescriptions" className="stat-card">
+          <Card title="Completed Appointments" className="stat-card">
+            <div className="stat-number">{completedAppointments.length}</div>
+          </Card>
+          <Card title="Total Prescriptions" className="stat-card">
             <div className="stat-number">{patientPrescriptions.length}</div>
           </Card>
-          <Card title="Quick Actions" className="stat-card">
-            <button 
-              onClick={() => setShowBookingModal(true)}
-              className="btn btn-primary"
-            >
-              Book Appointment
-            </button>
+        </div>
+
+        <div className="quick-actions-section">
+          <Card title="Quick Actions">
+            <div className="action-buttons">
+              <button 
+                onClick={() => setShowBookingModal(true)}
+                className="btn btn-primary"
+              >
+                📅 Book New Appointment
+              </button>
+              <button 
+                onClick={handleViewAppointmentHistory}
+                className="btn btn-outline"
+              >
+                📋 View Appointment History
+              </button>
+            </div>
           </Card>
         </div>
 
@@ -139,27 +172,33 @@ const PatientDashboard = () => {
               <p>No prescriptions available</p>
             ) : (
               <div className="prescriptions-list">
-                {patientPrescriptions.slice(0, 3).map(prescription => {
+                {recentPrescriptions.map(prescription => {
                   const doctor = getDoctorById(prescription.doctorId);
                   return (
                     <div key={prescription.id} className="prescription-card">
-                      <h4>Prescribed by {doctor?.name}</h4>
-                      <div className="medicines">
-                        {prescription.medicines.map((med, index) => (
-                          <div key={index} className="medicine-item">
-                            <strong>{med.medicineName}</strong>
-                            <p>{med.dosage} - {med.frequency}</p>
-                            <p>Duration: {med.duration}</p>
-                            <p>Instructions: {med.instructions}</p>
-                          </div>
-                        ))}
+                      <div className="prescription-header">
+                        <h4>Prescribed by {doctor?.name}</h4>
+                        <button 
+                          onClick={() => handleViewPrescription(prescription)}
+                          className="btn btn-outline btn-sm"
+                        >
+                          View Details
+                        </button>
                       </div>
-                      <p className="prescription-date">
-                        Date: {new Date(prescription.createdAt).toLocaleDateString()}
-                      </p>
+                      <div className="medicines-summary">
+                        <p><strong>Medicines:</strong> {prescription.medicines.length} prescribed</p>
+                        <p className="prescription-date">
+                          Date: {new Date(prescription.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
                   );
                 })}
+                {patientPrescriptions.length > 3 && (
+                  <button className="btn btn-outline btn-sm">
+                    View All Prescriptions ({patientPrescriptions.length})
+                  </button>
+                )}
               </div>
             )}
           </Card>
@@ -247,7 +286,10 @@ const PatientDashboard = () => {
           </div>
 
           <div className="modal-actions">
-            <button type="button" onClick={() => setShowBookingModal(false)} className="btn btn-outline">
+            <button type="button" onClick={() => {
+              setShowBookingModal(false);
+              resetBookingForm();
+            }} className="btn btn-outline">
               Cancel
             </button>
             <button type="submit" className="btn btn-primary">
@@ -255,6 +297,91 @@ const PatientDashboard = () => {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Prescription Details Modal */}
+      <Modal 
+        isOpen={showPrescriptionModal} 
+        onClose={() => setShowPrescriptionModal(false)}
+        title="Prescription Details"
+      >
+        {selectedPrescription && (
+          <div className="prescription-details">
+            <div className="patient-info">
+              <h4>Prescribed by {getDoctorById(selectedPrescription.doctorId)?.name}</h4>
+              <p>Date: {new Date(selectedPrescription.createdAt).toLocaleDateString()}</p>
+            </div>
+
+            <div className="medicines-section">
+              <h4>Prescribed Medicines</h4>
+              {selectedPrescription.medicines.map((med, index) => (
+                <div key={index} className="medicine-item">
+                  <strong>{med.medicineName}</strong>
+                  <p><strong>Dosage:</strong> {med.dosage}</p>
+                  <p><strong>Frequency:</strong> {med.frequency}</p>
+                  <p><strong>Duration:</strong> {med.duration}</p>
+                  <p><strong>Instructions:</strong> {med.instructions || 'None'}</p>
+                </div>
+              ))}
+            </div>
+
+            {selectedPrescription.notes && (
+              <div className="prescription-notes">
+                <h4>Additional Notes</h4>
+                <p>{selectedPrescription.notes}</p>
+              </div>
+            )}
+
+            <div className="modal-actions">
+              <button onClick={() => setShowPrescriptionModal(false)} className="btn btn-primary">
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Appointment History Modal */}
+      <Modal 
+        isOpen={showAppointmentHistoryModal} 
+        onClose={() => setShowAppointmentHistoryModal(false)}
+        title="Appointment History"
+      >
+        <div className="appointment-history">
+          {patientAppointments.length === 0 ? (
+            <p>No appointment history available</p>
+          ) : (
+            <div className="appointments-list">
+              {patientAppointments.map(appointment => {
+                const doctor = getDoctorById(appointment.doctorId);
+                return (
+                  <div key={appointment.id} className="appointment-card">
+                    <div className="appointment-info">
+                      <h4>{doctor?.name}</h4>
+                      <p>{doctor?.specialization}</p>
+                      <p>📅 {appointment.date} at {appointment.time}</p>
+                      <p>📝 {appointment.reason}</p>
+                      <span className={`status status-${appointment.status}`}>
+                        {appointment.status}
+                      </span>
+                    </div>
+                    <div className="appointment-meta">
+                      <p className="appointment-date">
+                        Booked: {new Date(appointment.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          
+          <div className="modal-actions">
+            <button onClick={() => setShowAppointmentHistoryModal(false)} className="btn btn-primary">
+              Close
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
